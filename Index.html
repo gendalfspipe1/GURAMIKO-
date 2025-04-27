@@ -1,1 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Platform Jumper</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #87ceeb; }
+    canvas { display: block; margin: auto; background: linear-gradient(#87ceeb, #ffffff); }
+  </style>
+</head>
+<body>
+<canvas id="game"></canvas>
 
+<script>
+// Setup canvas
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = 400;
+canvas.height = 600;
+
+// Load boy image
+const boyImg = new Image();
+boyImg.src = 'https://i.imgur.com/83XBYdl.png'; // Your boy image
+
+// Load jump sound
+const jumpSound = new Audio('https://cdn.pixabay.com/download/audio/2022/10/30/audio_7d0266b35c.mp3?filename=jump-8bit-100746.mp3');
+
+// Game state variables
+let score = 0;
+let platforms = [];
+let boy = {
+  x: 200,
+  y: 450,
+  width: 60,
+  height: 60,
+  vy: 0,
+  vx: 0,
+  speed: 4,
+  jumpPower: -13,
+  gravity: 0.5,
+  alive: true
+};
+
+let keys = {
+  left: false,
+  right: false
+};
+
+// Create starting platforms
+function createPlatforms() {
+  platforms = [];
+  let y = 550;
+  for (let i = 0; i < 10; i++) {
+    platforms.push({
+      x: Math.random() * (canvas.width - 100),
+      y: y,
+      width: 100,
+      height: 20
+    });
+    y -= 60;
+  }
+}
+
+// Draw functions
+function drawPlatforms() {
+  ctx.fillStyle = "white";
+  for (let platform of platforms) {
+    ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
+  }
+}
+
+function drawBoy() {
+  ctx.drawImage(boyImg, boy.x, boy.y, boy.width, boy.height);
+}
+
+function drawScore() {
+  ctx.fillStyle = "black";
+  ctx.font = "20px Arial";
+  ctx.fillText("Score: " + Math.floor(score), 10, 30);
+}
+
+function gameOver() {
+  ctx.fillStyle = "red";
+  ctx.font = "40px Arial";
+  ctx.fillText("Game Over", 100, 300);
+
+  ctx.fillStyle = "black";
+  ctx.font = "20px Arial";
+  ctx.fillText("Final Score: " + Math.floor(score), 120, 350);
+
+  ctx.font = "16px Arial";
+  ctx.fillText("Click to restart", 140, 400);
+}
+
+// Main game loop
+function gameLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (boy.alive) {
+    // Controls for left and right movement
+    if (keys.left) {
+      boy.vx = -boy.speed;
+    } else if (keys.right) {
+      boy.vx = boy.speed;
+    } else {
+      boy.vx = 0;
+    }
+
+    boy.vy += boy.gravity;
+    boy.y += boy.vy;
+    boy.x += boy.vx;
+
+    // Wall wrapping
+    if (boy.x > canvas.width) boy.x = -boy.width;
+    if (boy.x + boy.width < 0) boy.x = canvas.width;
+
+    // Scroll platforms
+    if (boy.y < 300) {
+      boy.y = 300;
+      for (let platform of platforms) {
+        platform.y += Math.abs(boy.vy);
+      }
+      score += Math.abs(boy.vy) * 0.5;
+    }
+
+    // Collision with platforms
+    for (let platform of platforms) {
+      if (
+        boy.vy > 0 &&
+        boy.x + boy.width > platform.x &&
+        boy.x < platform.x + platform.width &&
+        boy.y + boy.height > platform.y &&
+        boy.y + boy.height < platform.y + platform.height
+      ) {
+        boy.vy = boy.jumpPower;
+        jumpSound.play();
+      }
+    }
+
+    // Recycle platforms
+    for (let platform of platforms) {
+      if (platform.y > canvas.height) {
+        platform.y = -20;
+        platform.x = Math.random() * (canvas.width - 100);
+      }
+    }
+
+    // Death condition
+    if (boy.y > canvas.height) {
+      boy.alive = false;
+    }
+
+    drawPlatforms();
+    drawBoy();
+    drawScore();
+
+    requestAnimationFrame(gameLoop);
+  } else {
+    drawPlatforms();
+    drawBoy();
+    gameOver();
+  }
+}
+
+// Restart game
+canvas.addEventListener('click', () => {
+  if (!boy.alive) {
+    resetGame();
+  } else {
+    boy.vy = boy.jumpPower;
+    jumpSound.play();  // Play jump sound
+  }
+});
+
+// Key handling for physical keyboard (left and right arrow keys)
+window.addEventListener('keydown', function(e) {
+  if (e.key === 'ArrowLeft') keys.left = true;
+  if (e.key === 'ArrowRight') keys.right = true;
+});
+
+window.addEventListener('keyup', function(e) {
+  if (e.key === 'ArrowLeft') keys.left = false;
+  if (e.key === 'ArrowRight') keys.right = false;
+});
+
+// Restart the game
+function resetGame() {
+  boy.x = 200;
+  boy.y = 450;
+  boy.vx = 0;
+  boy.vy = 0;
+  boy.alive = true;
+  score = 0;
+  createPlatforms();
+  gameLoop();
+}
+
+// Start game once assets are loaded
+boyImg.onload = function() {
+  createPlatforms();
+  gameLoop();
+};
+
+</script>
+
+</body>
+</html>
